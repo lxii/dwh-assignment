@@ -19,11 +19,28 @@ The data model follows a [medallion architecture](https://www.databricks.com/glo
 
 First, the data is copied from production to bronze database.
 
-The following data quality checks can be enabled that can lead to insights about production issues:
+Then in silver columns are renamed for consistency, timestamps are truncated to minutes and converted to UTC, assuming that is a system timezone.
+
+In gold layer the analytical views are created.
+
+
+To-do: the following data quality checks can be enabled that can lead to insights about production issues:
 
 1. general constraint violations: checking how many constraints (null or out-of-check values).
 2. groups without admins.
 3. outdated event rsvps after the event dates.
+
+### Handling deletions
+Depending on the production architecture we can do the following to optimize the deletions from the data warehouse:
+
+1. Index (z-order) on the keys subject to deletion.
+2. Hashing (using surrogate ids), anonymizing and obfuscating the dataset along with extracting identifiable information into a smaller dimension. This will enable to run deletions on smaller dimension, removing the reidentification risk from remaining datasets.
+
+### Handling changes
+
+In order to capture the cases when users accept or reject the event multiple times, it is better to use slowly changing dimension type 2. In this case, in ETL we don't update the records based on `event_id` + `member_id`, instead we add a new row for each change.
+
+That way we can track historical signup rate for events.
 
 ## 3. Production considerations
 

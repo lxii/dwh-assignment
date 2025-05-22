@@ -48,23 +48,66 @@ ul.task-list li input[type="checkbox"] {
 
 <section id="spond-test-case" class="level1">
 <h1>Spond test case</h1>
-<p>Data warehousing assignment from Spond.</p>
+<p>Data warehousing assignment. For brevity I chose to use PostgreSQL as a data source and a data warehouse. The data ingestion and procedures are written in SQL and Python.</p>
 <section id="setting-up-the-project" class="level2">
 <h2 class="anchored" data-anchor-id="setting-up-the-project">1. Setting up the project</h2>
-<p>Ingesting data from postgres -&gt; splitting into facts and dimensions, adding columns -&gt;</p>
+<p>In order to setup the project <code>cd</code> into the repo and run the following commands:</p>
+<p><code>bash podman-setup.sh</code> <code>bash pg-init.sh</code></p>
+<p>Once you see the CREATE TABLE and COPY statements in the terminal, you can run the ingestion using the following command:</p>
+<p><code>python src/app.py</code></p>
 </section>
 <section id="data-model" class="level2">
 <h2 class="anchored" data-anchor-id="data-model">2. Data model</h2>
 <p>The data model follows a <a href="https://www.databricks.com/glossary/medallion-architecture">medallion architecture</a>.</p>
+<p>First, the data is copied from production to bronze database.</p>
+<p>Then in silver columns are renamed for consistency, timestamps are truncated to minutes and converted to UTC, assuming that is a system timezone.</p>
+<p>In gold layer the analytical views are created.</p>
+<p>To-do: the following data quality checks can be enabled that can lead to insights about production issues:</p>
+<ol type="1">
+<li>general constraint violations: checking how many constraints (null or out-of-check values).</li>
+<li>groups without admins.</li>
+<li>outdated event rsvps after the event dates.</li>
+</ol>
+<section id="handling-deletions" class="level3">
+<h3 class="anchored" data-anchor-id="handling-deletions">Handling deletions</h3>
+<p>Depending on the production architecture we can do the following to optimize the deletions from the data warehouse:</p>
+<ol type="1">
+<li>Index on the keys subject to deletion.</li>
+<li>Hashing (using surrogate ids), anonymizing and obfuscating the dataset along with extracting identifiable information into a smaller dimension. This will enable to run deletions on smaller dimension, removing the reidentification risk from remaining datasets.</li>
+</ol>
+</section>
+<section id="handling-changes" class="level3">
+<h3 class="anchored" data-anchor-id="handling-changes">Handling changes</h3>
+<p>In order to capture the cases when users accept or reject the event multiple times, it is better to use slowly changing dimension type 2. In this case, in ETL we don’t update the records based on event_id + member_id, instead we add a new row for each change.</p>
+<p>That way we can track historical signup rate for events.</p>
+</section>
 </section>
 <section id="production-considerations" class="level2">
 <h2 class="anchored" data-anchor-id="production-considerations">3. Production considerations</h2>
 <ol type="1">
-<li>Scalability: the increase in production traffic will affect the implementation in two ways:</li>
-</ol>
+<li><p>Scalability: the increase in production traffic will affect the implementation in two ways:</p>
 <ul>
-<li><p>data ingestion: instead of querying the massive amounts of data from the production database, data pipeline can consume write-ahead logs or other exports.</p></li>
-<li><p>data processing: the tables will need to be properly partitioned, so that unnecessary data is skipped on querying. The prime candidates for different tables can be <code>country_code</code> and <code>*_date</code> or <code>*_month</code> fields derived from various timestamps fields. In addition, <code>members</code>, <code>events</code> and <code>event_rsvps</code> can be denormalized to include the <code>country_code</code> and then be partitioned with it.</p></li>
+<li><p>instead of creating analytical views, the data in data marts can be persisted and inserted as daily batches.</p></li>
+<li><p>data ingestion: instead of querying the massive amounts of data from the production database, data pipeline can consume write-ahead logs or other exports. In addition, the cadence of ingestion can be switched to more frequent updates if daily batches are expensive for the production database.</p></li>
+<li><p>data processing: the tables will need to be properly partitioned, so that unnecessary data is skipped on querying. The prime candidates for different tables can be <code>country_code</code> and <code>*_date</code> or <code>*_month</code> fields derived from various timestamps fields. In addition, <code>members</code>, <code>events</code> and <code>event_rsvps</code> can be denormalized to include the <code>country_code</code> and then be partitioned with it. Also, if the data is in a several terrabyte range, then a switch to big-data platform might be required. That is using cloud storage and distributed compute framework, i.e.&nbsp;pyspark for processing.</p></li>
+<li><p>adding smaller integer keys (or surrogate ids) and providing indexing (or z-order for delta or iceberg tables) on them.</p></li>
+</ul></li>
+<li><p>Schema evolution and versioning:</p>
+<ul>
+<li>first of all, it will require a setting of ground rules with developers, data engineer(s), and analysts, e.g.&nbsp;not using <code>SELECT *</code> from databases, not renaming existing fields if it can be avoided, and not changing the granularity of the tables. This way even with the addition of new columns the existing reports will not crash.</li>
+<li>a process can be set up monitoring production schema changes and validating them against the analytical databases.</li>
+<li>in general, maintaining a direct communication line with the product/tech and analysts will ensure that the team is proactive, and not reactive.</li>
+</ul></li>
+<li><p>Testing: assuming CI/CD should be a part of the</p></li>
+<li><p>Monitoring: enabling the production logs for the compute and orchestration environments, recording the numbers of inserted/updated/deleted rows for each pipeline run, having basic slack/teams/email integrations notifying about pipeline failures.</p></li>
+<li><p>GDPR</p></li>
+</ol>
+<p>In line with privacy by design, the following measures will need to be implemented:</p>
+<ul>
+<li>a data retention routine: a daily script that will delete data beyond the retention period.</li>
+<li>precision reduction: timestamps should be reduced to minutes, date of births reduced to years.</li>
+<li>if the business needs allow it, replace natural id’s (teams, members, events, rsvp’s) with surrogate ids, while maintaining a separate mapping with original for operational needs. Surrogate id’s provide the same level of obfuscation as cryptographic hashing, but are more difficult to re-identify because they are not directly related to the original business key.</li>
+<li>moreover, the separation of different access levels for data ingestion/data processing levels.</li>
 </ul>
 </section>
 </section>

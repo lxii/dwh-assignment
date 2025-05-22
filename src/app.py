@@ -70,8 +70,9 @@ data_mart = """
     FROM spond_event_stats;
 """
 
-print(pd.read_sql(membership_stats, pg_connection))
-print(pd.read_sql("select min(joined_at::date), max(joined_at::date) from prod.memberships", pg_connection))
+pd.set_option('display.max_rows', None)
+# print(pd.read_sql(membership_stats, pg_connection))
+print(pd.read_sql("SELECT * FROM pg_catalog.pg_tables", pg_connection))
 # print(pd.read_sql("select count(distinct(event_id)) from prod.events", pg_connection))
 
 pg_connection.close()
