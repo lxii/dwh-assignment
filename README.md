@@ -1,17 +1,25 @@
-# Spond test case
+# Warehousing case
 
-Data warehousing assignment. For brevity I chose to use PostgreSQL as a data source and a data warehouse. The data ingestion and procedures are written in SQL and Python.
+I chose to use PostgreSQL as a data source and a data warehouse. The data ingestion and procedures are written in SQL (mostly) and Python.
 
 ## 1. Setting up the project
 
-In order to setup the project `cd` into the repo and run the following commands:
+In order to run the project clone the repo, `cd` into the folder and run the following commands (requires podman and python):
 
 `bash podman-setup.sh`
 `bash pg-init.sh`
 
 Once you see the CREATE TABLE and COPY statements in the terminal, you can run the ingestion using the following command:
 
-`python src/app.py`
+`bash etl.sh`
+
+This command will run the ETL (not templated by dates, just a wholesale processing of tables and creation of views).
+
+It will output the samples of data answering analytical questions.
+
+After it is done running, please run the cleanup script:
+
+`bash cleanup.sh`
 
 ## 2. Data model
 
@@ -23,7 +31,6 @@ Then in silver columns are renamed for consistency, timestamps are truncated to 
 
 In gold layer the analytical views are created.
 
-
 To-do: the following data quality checks can be enabled that can lead to insights about production issues:
 
 1. general constraint violations: checking how many constraints (null or out-of-check values).
@@ -31,6 +38,7 @@ To-do: the following data quality checks can be enabled that can lead to insight
 3. outdated event rsvps after the event dates.
 
 ### Handling deletions
+
 Depending on the production architecture we can do the following to optimize the deletions from the data warehouse:
 
 1. Index (z-order) on the keys subject to deletion.

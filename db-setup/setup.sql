@@ -14,8 +14,7 @@ CREATE TABLE IF NOT EXISTS PROD.MEMBERSHIPS (
     membership_id UUID PRIMARY KEY,
     group_id UUID NOT NULL,
     role_title TEXT CHECK (role_title IN ('member', 'admin')),
-    joined_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    FOREIGN KEY (group_id) REFERENCES PROD.TEAMS(team_id)
+    joined_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS PROD.EVENTS (
@@ -23,8 +22,7 @@ CREATE TABLE IF NOT EXISTS PROD.EVENTS (
     team_id UUID NOT NULL,
     event_start TIMESTAMP WITH TIME ZONE NOT NULL,
     event_end TIMESTAMP WITH TIME ZONE NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    FOREIGN KEY (team_id) REFERENCES PROD.TEAMS(team_id)
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS PROD.EVENT_RSVPS (
@@ -32,21 +30,19 @@ CREATE TABLE IF NOT EXISTS PROD.EVENT_RSVPS (
     event_id UUID NOT NULL,
     member_id UUID NOT NULL,
     rsvp_status INTEGER CHECK (rsvp_status IN (0, 1, 2)),
-    responded_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    FOREIGN KEY (event_id) REFERENCES PROD.EVENTS(event_id),
-    FOREIGN KEY (member_id) REFERENCES PROD.MEMBERSHIPS(membership_id)
+    responded_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
 -- helper table for analytics
 CREATE TABLE IF NOT EXISTS SILVER.EVENT_DATES AS 
     WITH dates AS (
         SELECT
-            dd::date as event_date
-            , extract('isoyear' from current_date)::int as event_year
-            , extract('month' from current_date)::int as event_month
-            , extract('week' from current_date)::int as event_week
+            d::date as event_date
+            , extract('isoyear' from d)::int as event_year
+            , extract('month' from d)::int as event_month
+            , extract('week' from d)::int as event_week
         FROM generate_series
-            ( '2020-01-01'::date, '2030-01-01'::date, '1 day'::interval) dd
+            ( '2020-01-01'::date, '2030-01-01'::date, '1 day'::interval) d
 ) SELECT 
     event_date
     , event_year
